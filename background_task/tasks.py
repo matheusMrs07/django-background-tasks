@@ -236,14 +236,12 @@ class DBTaskRunner(object):
 
     @atomic
     def get_task_to_run(self, tasks, queue=None):
-        available_tasks = [task for task in Task.objects.find_available(queue)
-                           if task.task_name in tasks._tasks][:5]
-        for task in available_tasks:
-            # try to lock task
-            locked_task = task.lock(self.worker_name)
-            if locked_task:
-                return locked_task
-        return None
+        task = Task.objects.find_available(queue).filter(task_name__in=tasks._tasks.keys()).select_for_update(skip_locked=True).first()
+        task.locked_by = self.worker_name
+        task.locked_at = timezone.now()
+        task.save()
+        
+        return task
 
     @atomic
     def run_task(self, tasks, task):
