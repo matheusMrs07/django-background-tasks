@@ -10,7 +10,7 @@ class SignalManager(object):
     """Manages POSIX signals."""
 
     kill_now = False
-    time_to_wait = TTW_SLOW
+    time_to_wait = TTW_FAST
 
     def __init__(self):
         # Temporary workaround for signals not available on Windows
