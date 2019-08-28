@@ -236,7 +236,7 @@ class DBTaskRunner(object):
 
     @atomic
     def get_task_to_run(self, tasks, queue=None):
-        task = Task.objects.find_available(queue).filter(task_name__in=tasks._tasks.keys()).select_for_update(skip_locked=True).first()
+        task = Task.objects.find_next_task(queue, tasks._tasks.keys())
 
         if task:
             task.locked_by = self.worker_name
