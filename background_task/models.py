@@ -55,14 +55,6 @@ class TaskManager(models.Manager):
         _priority_ordering = '{}priority'.format(app_settings.BACKGROUND_TASK_PRIORITY_ORDERING)
         ready = ready.order_by(_priority_ordering, 'run_at')
 
-        if app_settings.BACKGROUND_TASK_RUN_ASYNC:
-            currently_locked = self.locked(now).count()
-            count = app_settings.BACKGROUND_TASK_ASYNC_THREADS - currently_locked
-            if count > 0:
-                ready = ready[:count]
-            else:
-                ready = self.none()
-
         return ready
 
     def unlocked(self, now):
