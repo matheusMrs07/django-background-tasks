@@ -460,6 +460,20 @@ class TestTasks(TransactionTestCase):
         self.failUnless(failed_task.run_at > original_task.run_at)
         self.failUnless(failed_task.locked_by is None)
         self.failUnless(failed_task.locked_at is None)
+        self.assertEqual(failed_task.priority, -1)
+
+    def test_decrease_priority(self):
+        with self.settings(BACKGROUND_TASK_PRIORITY_ORDERING='ASC'):
+            task = Task()
+            self.assertEqual(task.priority, 0)
+            task.decrease_priority()
+            self.assertEqual(task.priority, 1)
+
+        with self.settings(BACKGROUND_TASK_PRIORITY_ORDERING='DESC'):
+            task = Task()
+            self.assertEqual(task.priority, 0)
+            task.decrease_priority()
+            self.assertEqual(task.priority, -1)
 
     def test_run_next_task_does_not_run_locked(self):
         self.set_fields(locked=True)

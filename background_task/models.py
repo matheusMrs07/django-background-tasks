@@ -221,6 +221,13 @@ class Task(models.Model):
         self.attempts += 1
         self.save()
 
+    def decrease_priority(self):
+        order = app_settings.BACKGROUND_TASK_PRIORITY_ORDERING
+        if order:
+            self.priority -= 1
+        else:
+            self.priority += 1
+
     def has_reached_max_attempts(self):
         max_attempts = app_settings.BACKGROUND_TASK_MAX_ATTEMPTS
         return self.attempts >= max_attempts
@@ -249,6 +256,7 @@ class Task(models.Model):
             task_rescheduled.send(sender=self.__class__, task=self)
             self.locked_by = None
             self.locked_at = None
+            self.decrease_priority()
             self.save()
 
     def create_completed_task(self):
