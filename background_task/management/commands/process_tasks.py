@@ -86,6 +86,9 @@ class Command(BaseCommand):
 
         start_time = time.time()
 
+        if queue:
+            queue = queue.split(',')
+
         while (duration <= 0) or (time.time() - start_time) <= duration:
             if sig_manager.kill_now:
                 # shutting down gracefully

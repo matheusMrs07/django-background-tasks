@@ -664,7 +664,7 @@ class NamedQueueTestCase(TransactionTestCase):
 
     def test_process_queue(self):
         named_queue_task('test1')
-        run_next_task(queue='named_queue')
+        run_next_task(queue=['named_queue'])
         self.assertIn('test1', completed_named_queue_tasks, msg='Task should be processed')
 
     def test_process_all_tasks(self):
@@ -674,7 +674,7 @@ class NamedQueueTestCase(TransactionTestCase):
 
     def test_process_other_queue(self):
         named_queue_task('test3')
-        run_next_task(queue='other_named_queue')
+        run_next_task(queue=['other_named_queue'])
         self.assertNotIn('test3', completed_named_queue_tasks, msg='Task should be ignored')
         run_next_task()
 
