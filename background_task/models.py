@@ -325,3 +325,7 @@ class Task(models.Model):
 
     class Meta:
         db_table = 'background_task'
+        indexes = [
+            models.Index(fields=['priority', 'run_at']),
+            models.Index(fields=['-priority', 'run_at']),
+        ]
