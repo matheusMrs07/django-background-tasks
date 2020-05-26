@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from django.db import models
 from django.utils import timezone
-from django.utils.six import python_2_unicode_compatible
+from six import python_2_unicode_compatible
 
 from background_task.models import Task
 
