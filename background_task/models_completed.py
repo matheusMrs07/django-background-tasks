@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 
-from compat.models import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 
 from django.db import models

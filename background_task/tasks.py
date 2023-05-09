@@ -8,7 +8,7 @@ import logging
 import os
 import sys
 
-from compat import atomic
+from django.db.transaction import atomic
 from django.utils import timezone
 from six import python_2_unicode_compatible
 
