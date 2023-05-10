@@ -16,12 +16,7 @@ from six import python_2_unicode_compatible
 
 from background_task.settings import app_settings
 from background_task.signals import task_failed, task_rescheduled
-
-try:
-    import cStringIO.StringIO as StringIO
-except ImportError:
-    import six
-    StringIO = six.StringIO
+from io import StringIO
 
 
 logger = logging.getLogger(__name__)
