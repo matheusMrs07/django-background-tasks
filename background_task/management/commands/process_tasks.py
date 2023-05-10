@@ -9,7 +9,6 @@ from django.core.management.base import BaseCommand
 
 from background_task.tasks import tasks, autodiscover
 from background_task.utils import SignalManager
-from compat import close_connection
 from django_db_geventpool.utils import close_connection
 
 
