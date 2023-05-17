@@ -7,8 +7,7 @@ import os
 import traceback
 import django
 
-from compat import StringIO
-from compat.models import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Q
@@ -17,6 +16,7 @@ from six import python_2_unicode_compatible
 
 from background_task.settings import app_settings
 from background_task.signals import task_failed, task_rescheduled
+from io import StringIO
 
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 # inspired by http://github.com/tobi/delayed_job
 #
-
 
 class TaskQuerySet(models.QuerySet):
 
