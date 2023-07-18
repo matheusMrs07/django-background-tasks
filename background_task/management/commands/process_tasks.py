@@ -108,7 +108,7 @@ class Command(BaseCommand):
                 # there were no tasks in the queue, let's recover.
                 close_connection()
                 logger.debug('waiting for tasks')
-                time.sleep(sleep)
+                time.sleep(self.sleep)
                 self.raise_sleep_value()
             else:
                 self.set_sleep_default()
