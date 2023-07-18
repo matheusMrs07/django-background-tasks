@@ -70,10 +70,18 @@ class Command(BaseCommand):
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)
         self._tasks = tasks
+        self.sleep = 5
+        self.default_sleep = 5
+
+    def raise_sleep_value(self):
+        self.sleep = self.sleep * 2
+
+    def set_sleep_default(self):
+        self.sleep = self.default_sleep
 
     def handle(self, *args, **options):
         duration = options.pop('duration', 0)
-        sleep = options.pop('sleep', 5.0)
+        default_sleep = options.pop('sleep', 5.0)
         queue = options.pop('queue', None)
         log_std = options.pop('log_std', False)
         sig_manager = SignalManager()
@@ -88,6 +96,9 @@ class Command(BaseCommand):
         if queue:
             queue = queue.split(',')
 
+        self.sleep = default_sleep
+        self.default_sleep = default_sleep
+
         while (duration <= 0) or (time.time() - start_time) <= duration:
             if sig_manager.kill_now:
                 # shutting down gracefully
@@ -98,6 +109,8 @@ class Command(BaseCommand):
                 close_connection()
                 logger.debug('waiting for tasks')
                 time.sleep(sleep)
+                self.raise_sleep_value()
             else:
+                self.set_sleep_default()
                 # there were some tasks to process, let's check if there is more work to do after a little break.
                 time.sleep(random.uniform(sig_manager.time_to_wait[0], sig_manager.time_to_wait[1]))
