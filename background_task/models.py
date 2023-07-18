@@ -46,6 +46,12 @@ class TaskManager(models.Manager):
     def created_by(self, creator):
         return self.get_queryset().created_by(creator)
 
+    def get_first_task(self):
+        try:
+            return self[:1][0]
+        except IndexError:
+            return None
+
     def find_available(self, queue=None):
         now = timezone.now()
         qs = self.unlocked(now)
@@ -63,7 +69,7 @@ class TaskManager(models.Manager):
         if django.VERSION >= (1, 11):
             kwargs['skip_locked'] = True
 
-        return self.find_available(queue).filter(task_name__in=task_names).select_for_update(**kwargs).first()
+        return self.find_available(queue).filter(task_name__in=task_names).select_for_update(**kwargs).get_first_task()
 
     def unlocked(self, now):
         max_run_time = app_settings.BACKGROUND_TASK_MAX_RUN_TIME
