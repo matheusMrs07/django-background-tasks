@@ -37,6 +37,11 @@ class TaskQuerySet(models.QuerySet):
             creator_object_id=creator.id,
         )
 
+    def get_first_task(self):
+        try:
+            return self[:1][0]
+        except IndexError:
+            return None
 
 class TaskManager(models.Manager):
 
@@ -46,11 +51,6 @@ class TaskManager(models.Manager):
     def created_by(self, creator):
         return self.get_queryset().created_by(creator)
 
-    def get_first_task(self):
-        try:
-            return self[:1][0]
-        except IndexError:
-            return None
 
     def find_available(self, queue=None):
         now = timezone.now()
