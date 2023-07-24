@@ -45,6 +45,13 @@ class Command(BaseCommand):
             'default': 5.0,
             'help': 'Sleep for this many seconds before checking for new tasks (if none were found) - default is 5',
         }),
+        (('--max_sleep',), {
+            'action': 'store',
+            'dest': 'max_sleep',
+            'type': float,
+            'default': 120.0,
+            'help': 'Max duration of sleep - default is 120',
+        }),
         (('--queue', ), {
             'action': 'store',
             'dest': 'queue',
@@ -72,9 +79,14 @@ class Command(BaseCommand):
         self._tasks = tasks
         self.sleep = 5
         self.default_sleep = 5
+        self.max_sleep = 120
 
     def raise_sleep_value(self):
-        self.sleep = self.sleep * 2
+        new_value = self.sleep * 2
+        if new_value > self.max_sleep:
+            self.sleep = self.max_sleep
+        else:
+            self.sleep = new_value
 
     def set_sleep_default(self):
         self.sleep = self.default_sleep
@@ -82,6 +94,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         duration = options.pop('duration', 0)
         default_sleep = options.pop('sleep', 5.0)
+        max_sleep = options.pop('max_sleep', 120.0)
         queue = options.pop('queue', None)
         log_std = options.pop('log_std', False)
         sig_manager = SignalManager()
@@ -98,6 +111,7 @@ class Command(BaseCommand):
 
         self.sleep = default_sleep
         self.default_sleep = default_sleep
+        self.max_sleep = max_sleep
 
         while (duration <= 0) or (time.time() - start_time) <= duration:
             if sig_manager.kill_now:
