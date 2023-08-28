@@ -37,11 +37,6 @@ class TaskQuerySet(models.QuerySet):
             creator_object_id=creator.id,
         )
 
-    def get_first_task(self):
-        try:
-            return self[:1][0]
-        except IndexError:
-            return None
 
 class TaskManager(models.Manager):
 
@@ -69,7 +64,7 @@ class TaskManager(models.Manager):
         if django.VERSION >= (1, 11):
             kwargs['skip_locked'] = True
 
-        return self.find_available(queue).filter(task_name__in=task_names).select_for_update(**kwargs).get_first_task()
+        return self.find_available(queue).filter(task_name__in=task_names).select_for_update(**kwargs).first()
 
     def unlocked(self, now):
         max_run_time = app_settings.BACKGROUND_TASK_MAX_RUN_TIME
