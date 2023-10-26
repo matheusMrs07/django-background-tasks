@@ -46,6 +46,7 @@ class TaskManager(models.Manager):
     def created_by(self, creator):
         return self.get_queryset().created_by(creator)
 
+
     def find_available(self, queue=None):
         now = timezone.now()
         qs = self.unlocked(now)
