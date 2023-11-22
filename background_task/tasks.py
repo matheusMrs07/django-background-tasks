@@ -234,7 +234,6 @@ class DBTaskRunner(object):
         signals.task_created.send(sender=self.__class__, task=task)
         return task
 
-    @atomic
     def get_task_to_run(self, tasks, queue=None):
         task = Task.objects.find_next_task(queue, tasks._tasks.keys())
 
@@ -245,20 +244,14 @@ class DBTaskRunner(object):
         
         return task
 
-    @atomic
     def run_task(self, tasks, task):
         logger.info('Running %s', task)
         tasks.run_task(task)
 
-    @atomic
     def run_next_task(self, tasks, queue=None):
-        # we need to commit to make sure
-        # we can see new tasks as they arrive
         task = self.get_task_to_run(tasks, queue)
-        # transaction.commit()
         if task:
             self.run_task(tasks, task)
-            # transaction.commit()
             return True
         else:
             return False
