@@ -18,7 +18,8 @@ from background_task.settings import app_settings
 from background_task import signals
 
 logger = logging.getLogger(__name__)
-@atomic
+
+# @atomic
 def _update_task_with_error(task, ex):
     t, e, traceback = sys.exc_info()
     if task:
@@ -26,7 +27,8 @@ def _update_task_with_error(task, ex):
         signals.task_error.send(sender=ex.__class__, task=task)
         task.reschedule(t, e, traceback)
     del traceback
-@atomic
+
+# @atomic
 def _update_task_completed(task):
     # task done, so can delete it
     task.increment_attempts()
@@ -36,7 +38,7 @@ def _update_task_completed(task):
     task.delete()
     logger.info('Ran task and deleting %s', task)
 
-@atomic
+# @atomic
 def _run_task(proxy_task, task, *args, **kwargs):
     func = getattr(proxy_task, 'task_function', None)
     if isinstance(task, Task):
@@ -63,7 +65,7 @@ def bg_runner(proxy_task, task=None, *args, **kwargs):
         task = _run_task(proxy_task=proxy_task, task=task, args=args, kwargs=kwargs)
         if task:
             _update_task_completed(task=task)
-            
+
     except Exception as ex:
 
         _update_task_with_error(task=task, ex=ex)
@@ -254,9 +256,11 @@ class DBTaskRunner(object):
         
         return task
 
+    @atomic
     def run_task(self, tasks, task):
         logger.info('Running %s', task)
         tasks.run_task(task)
+
     @atomic
     def run_next_task(self, tasks, queue=None):
         task = self.get_task_to_run(tasks, queue)
