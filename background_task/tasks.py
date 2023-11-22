@@ -18,8 +18,41 @@ from background_task.settings import app_settings
 from background_task import signals
 
 logger = logging.getLogger(__name__)
+@atomic
+def _update_task_with_error(task, ex):
+    t, e, traceback = sys.exc_info()
+    if task:
+        logger.error('Rescheduling %s', task, exc_info=(t, e, traceback))
+        signals.task_error.send(sender=ex.__class__, task=task)
+        task.reschedule(t, e, traceback)
+    del traceback
+@atomic
+def _update_task_completed(task):
+    # task done, so can delete it
+    task.increment_attempts()
+    completed = task.create_completed_task()
+    signals.task_successful.send(sender=task.__class__, task_id=task.id, completed_task=completed)
+    task.create_repetition()
+    task.delete()
+    logger.info('Ran task and deleting %s', task)
 
-
+@atomic
+def _run_task(proxy_task, task, *args, **kwargs):
+    func = getattr(proxy_task, 'task_function', None)
+    if isinstance(task, Task):
+        args, kwargs = task.params()
+    else:
+        task_name = getattr(proxy_task, 'name', None)
+        task_queue = getattr(proxy_task, 'queue', None)
+        task_qs = Task.objects.get_task(task_name=task_name, args=args, kwargs=kwargs)
+        if task_queue:
+            task_qs = task_qs.filter(queue=task_queue)
+        if task_qs:
+            task = task_qs[0]
+    if func is None:
+        raise BackgroundTaskError("Function is None, can't execute!")
+    func(*args, **kwargs)
+    return task
 def bg_runner(proxy_task, task=None, *args, **kwargs):
     """
     Executes the function attached to task. Used to enable threads.
@@ -27,37 +60,14 @@ def bg_runner(proxy_task, task=None, *args, **kwargs):
     """
     signals.task_started.send(Task)
     try:
-        func = getattr(proxy_task, 'task_function', None)
-        if isinstance(task, Task):
-            args, kwargs = task.params()
-        else:
-            task_name = getattr(proxy_task, 'name', None)
-            task_queue = getattr(proxy_task, 'queue', None)
-            task_qs = Task.objects.get_task(task_name=task_name, args=args, kwargs=kwargs)
-            if task_queue:
-                task_qs = task_qs.filter(queue=task_queue)
-            if task_qs:
-                task = task_qs[0]
-        if func is None:
-            raise BackgroundTaskError("Function is None, can't execute!")
-        func(*args, **kwargs)
-
+        task = _run_task(proxy_task=proxy_task, task=task, args=args, kwargs=kwargs)
         if task:
-            # task done, so can delete it
-            task.increment_attempts()
-            completed = task.create_completed_task()
-            signals.task_successful.send(sender=task.__class__, task_id=task.id, completed_task=completed)
-            task.create_repetition()
-            task.delete()
-            logger.info('Ran task and deleting %s', task)
-
+            _update_task_completed(task=task)
+            
     except Exception as ex:
-        t, e, traceback = sys.exc_info()
-        if task:
-            logger.error('Rescheduling %s', task, exc_info=(t, e, traceback))
-            signals.task_error.send(sender=ex.__class__, task=task)
-            task.reschedule(t, e, traceback)
-        del traceback
+
+        _update_task_with_error(task=task, ex=ex)
+
     signals.task_finished.send(Task)
 
 
@@ -233,7 +243,7 @@ class DBTaskRunner(object):
         task.save()
         signals.task_created.send(sender=self.__class__, task=task)
         return task
-
+    @atomic
     def get_task_to_run(self, tasks, queue=None):
         task = Task.objects.find_next_task(queue, tasks._tasks.keys())
 
@@ -247,7 +257,7 @@ class DBTaskRunner(object):
     def run_task(self, tasks, task):
         logger.info('Running %s', task)
         tasks.run_task(task)
-
+    @atomic
     def run_next_task(self, tasks, queue=None):
         task = self.get_task_to_run(tasks, queue)
         if task:
