@@ -38,7 +38,7 @@ def _update_task_completed(task):
     task.delete()
     logger.info('Ran task and deleting %s', task)
 
-# @atomic
+@atomic
 def _run_task(proxy_task, task, *args, **kwargs):
     func = getattr(proxy_task, 'task_function', None)
     if isinstance(task, Task):
