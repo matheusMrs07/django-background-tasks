@@ -1,23 +1,62 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from datetime import datetime, timedelta
-from importlib import import_module
-from multiprocessing.pool import ThreadPool
 import logging
 import os
 import sys
-
+from datetime import datetime, timedelta
 from django.db.transaction import atomic
 from django.utils import timezone
+from importlib import import_module
+from multiprocessing.pool import ThreadPool
 from six import python_2_unicode_compatible
 
+from background_task import signals
 from background_task.exceptions import BackgroundTaskError
 from background_task.models import Task
 from background_task.settings import app_settings
-from background_task import signals
 
 logger = logging.getLogger(__name__)
+
+
+@atomic
+def update_task_with_error(task, ex):
+    t, e, traceback = sys.exc_info()
+    if task:
+        logger.error('Rescheduling %s', task, exc_info=(t, e, traceback))
+        signals.task_error.send(sender=ex.__class__, task=task)
+        task.reschedule(t, e, traceback)
+    del traceback
+
+
+@atomic
+def create_completed_task(task):
+    # task done, so can delete it
+    task.increment_attempts()
+    completed = task.create_completed_task()
+    signals.task_successful.send(sender=task.__class__, task_id=task.id, completed_task=completed)
+    task.create_repetition()
+    task.delete()
+    logger.info('Ran task and deleting %s', task)
+
+
+@atomic
+def execute_task(proxy_task, task, *args, **kwargs):
+    func = getattr(proxy_task, 'task_function', None)
+    if isinstance(task, Task):
+        args, kwargs = task.params()
+    else:
+        task_name = getattr(proxy_task, 'name', None)
+        task_queue = getattr(proxy_task, 'queue', None)
+        task_qs = Task.objects.get_task(task_name=task_name, args=args, kwargs=kwargs)
+        if task_queue:
+            task_qs = task_qs.filter(queue=task_queue)
+        if task_qs:
+            task = task_qs[0]
+    if func is None:
+        raise BackgroundTaskError("Function is None, can't execute!")
+    func(*args, **kwargs)
+    return task
 
 
 def bg_runner(proxy_task, task=None, *args, **kwargs):
@@ -27,37 +66,12 @@ def bg_runner(proxy_task, task=None, *args, **kwargs):
     """
     signals.task_started.send(Task)
     try:
-        func = getattr(proxy_task, 'task_function', None)
-        if isinstance(task, Task):
-            args, kwargs = task.params()
-        else:
-            task_name = getattr(proxy_task, 'name', None)
-            task_queue = getattr(proxy_task, 'queue', None)
-            task_qs = Task.objects.get_task(task_name=task_name, args=args, kwargs=kwargs)
-            if task_queue:
-                task_qs = task_qs.filter(queue=task_queue)
-            if task_qs:
-                task = task_qs[0]
-        if func is None:
-            raise BackgroundTaskError("Function is None, can't execute!")
-        func(*args, **kwargs)
-
+        task = execute_task(proxy_task=proxy_task, task=task, args=args, kwargs=kwargs)
         if task:
-            # task done, so can delete it
-            task.increment_attempts()
-            completed = task.create_completed_task()
-            signals.task_successful.send(sender=task.__class__, task_id=task.id, completed_task=completed)
-            task.create_repetition()
-            task.delete()
-            logger.info('Ran task and deleting %s', task)
-
+            create_completed_task(task=task)
     except Exception as ex:
-        t, e, traceback = sys.exc_info()
-        if task:
-            logger.error('Rescheduling %s', task, exc_info=(t, e, traceback))
-            signals.task_error.send(sender=ex.__class__, task=task)
-            task.reschedule(t, e, traceback)
-        del traceback
+        update_task_with_error(task=task, ex=ex)
+
     signals.task_finished.send(Task)
 
 
@@ -109,6 +123,7 @@ class Tasks(object):
             proxy = self._task_proxy_class(_name, fn, schedule, queue, self._runner)
             self._tasks[_name] = proxy
             return proxy
+
         if fn:
             return _decorator(fn)
 
@@ -194,8 +209,8 @@ class TaskSchedule(object):
 
     def __eq__(self, other):
         return self._run_at == other._run_at \
-           and self._priority == other._priority \
-           and self._action == other._action
+            and self._priority == other._priority \
+            and self._action == other._action
 
 
 class DBTaskRunner(object):
@@ -242,7 +257,7 @@ class DBTaskRunner(object):
             task.locked_by = self.worker_name
             task.locked_at = timezone.now()
             task.save()
-        
+
         return task
 
     @atomic
@@ -252,13 +267,9 @@ class DBTaskRunner(object):
 
     @atomic
     def run_next_task(self, tasks, queue=None):
-        # we need to commit to make sure
-        # we can see new tasks as they arrive
         task = self.get_task_to_run(tasks, queue)
-        # transaction.commit()
         if task:
             self.run_task(tasks, task)
-            # transaction.commit()
             return True
         else:
             return False
@@ -289,6 +300,7 @@ class TaskProxy(object):
 
     def __str__(self):
         return 'TaskProxy(%s)' % self.name
+
 
 tasks = Tasks()
 
