@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def update_task_with_error(task, ex):
     t, e, traceback = sys.exc_info()
     if task:
-        if task.attempts >= 5:
+        if task.attempts >= app_settings.BACKGROUND_TASKS_MIN_ATTEMPTS_TO_LOG_ERROR:
             call_error_log(task)  
         signals.task_error.send(sender=ex.__class__, task=task)
         task.reschedule(t, e, traceback)

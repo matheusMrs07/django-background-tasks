@@ -57,5 +57,10 @@ class AppSettings(object):
         else:
             prefix = '-'
         return prefix
+    
+    @property
+    def BACKGROUND_TASKS_MIN_ATTEMPTS_TO_LOG_ERROR(self):
+        """Control how many times a task will be attempted."""
+        return getattr(settings, 'BACKGROUND_TASKS_MIN_ATTEMPTS_TO_LOG_ERROR', 5)
 
 app_settings = AppSettings()
